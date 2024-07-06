@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hello world</title>
+</head>
+<body>
+<form action="/form" method="post">
+    <input type="text" name="name" value="{{ name }}"/>
+    <input type="submit">
+</form>
+<form action="/videoupload" method="post" enctype="multipart/form-data">
+    <label for="video">Select a video file:</label><br>
+    <input type="file" id="video" name="video" accept="video/*"/><br><br>
+    <input type="submit" value="Upload Video">
+</form>
+<p>Hello {{ result }}</p>
+<p>Status: {{ status }}</p>
+<form action="/search" method="post">
+    <input type="text" name="query" placeholder="Enter your query...">
+    <button type="submit">Search</button>
+</form>
+<video width="320" height="240" controls>
+    <source src="videos/3626151-uhd_2160_4096_25fps.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+</video>
+
+{% if matched_videos %}
+    <h2>Matched Videos:</h2>
+    {% for video in matched_videos %}
+        <video width="320" height="240" controls>
+            <source src="{{ video }}" type="video/mp4">
+            Your browser does not support the video tag.
+        </video>
+    {% endfor %}
+{% elif message %}
+    <p>{{ message }}</p>
+{% endif %}
+</body>
+</html>
