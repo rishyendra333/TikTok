@@ -6,6 +6,7 @@ import uuid
 from fastapi import FastAPI, File, Request, Form, UploadFile
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import ffmpeg
 import numpy as np
@@ -13,10 +14,14 @@ from PIL import Image as Img
 from sentence_transformers import models, SentenceTransformer
 from pinecone import Pinecone, ServerlessSpec
 
+# Initialize Pinecone
 pc = Pinecone(api_key='44a257b1-5d26-4544-9825-d51ddaaa13e3')
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates/")
+
+# Serve static files from the "videos" directory
+app.mount("/videos", StaticFiles(directory="videos"), name="videos")
 
 # Allow all origins during development; restrict it as needed for production
 origins = ["*"]
@@ -75,8 +80,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-
 @app.get('/')
 def index(req: Request):
     return templates.TemplateResponse(
@@ -84,14 +87,12 @@ def index(req: Request):
         context={"request": req}
     )
 
-
 @app.get("/form")
 def form_post(request: Request):
     result = "Enter your name"
     return templates.TemplateResponse(
         "index.html", context={"request": request, "result": result}
     )
-
 
 @app.post("/form")
 def form_post(request: Request, name: str = Form(...)):
@@ -103,16 +104,15 @@ def form_post(request: Request, name: str = Form(...)):
 @app.post("/videoupload")
 async def vidupload(request: Request, video: UploadFile = File(...)):
     frames = get_frames(video)
-    # Process frames here (for example, save frames as images)
     embeddings = get_embeddings(frames)
     random_num = str(uuid.uuid4())
     filename = f"videos/{random_num}.mp4"
     vectors_with_metadata = [
-    {
-        "id": filename+"-"+str(i),
-        "values": embedding.tolist(),  # Convert embedding to list if it's a numpy array
-    }
-    for i, embedding in enumerate(embeddings)
+        {
+            "id": filename + "-" + str(i),
+            "values": embedding.tolist(),  # Convert embedding to list if it's a numpy array
+        }
+        for i, embedding in enumerate(embeddings)
     ]
     index_name = "tiktok-hackathon"
     index = pc.Index(index_name)
@@ -132,20 +132,15 @@ async def search(request: Request, query: str = Form(...)):
     index_name = "tiktok-hackathon"
     index = pc.Index(index_name)
     query_results = index.query(
-    namespace="video_embeddings",
-    vector=query_embedding.tolist(),
-    top_k=100,
-    include_values=True,
-    include_metadata=True
+        namespace="video_embeddings",
+        vector=query_embedding.tolist(),
+        top_k=100,
+        include_values=True,
+        include_metadata=True
     )
 
-    # Print the query results
-    # print(query_results['matches'][0]['id'][:-2])    
-    # print(query_results['matches'])
     matches = [i['id'][:-2] for i in query_results['matches']]
-    #print(matches)
 
-    # Check if matches exist in the videos folder
     matched_videos = []
     for match in query_results['matches']:
         video_path = match['id'][:-2]  # Extract the UUID part
@@ -164,3 +159,4 @@ async def search(request: Request, query: str = Form(...)):
             "index.html", 
             {"request": request, "query": query, "message": "No match found."}
         )
+
